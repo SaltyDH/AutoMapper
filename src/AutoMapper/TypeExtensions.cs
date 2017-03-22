@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using AutoMapper.Internal;
 
 namespace AutoMapper
 {
@@ -11,149 +12,102 @@ namespace AutoMapper
 
     internal static class TypeExtensions
     {
-        public static bool Has<TAttribute>(this Type type) where TAttribute : Attribute => type.GetTypeInfo().IsDefined(typeof(TAttribute), inherit: false);
+        public static bool Has<TAttribute>(this Type type) where TAttribute : Attribute => TypeHelper.Has<TAttribute>(type);
 
-        public static Type GetGenericTypeDefinitionIfGeneric(this Type type) => type.IsGenericType() ? type.GetGenericTypeDefinition() : type;
+        public static Type GetGenericTypeDefinitionIfGeneric(this Type type) => TypeHelper.GetGenericTypeDefinitionIfGeneric(type);
 
-        public static Type[] GetGenericArguments(this Type type) => type.GetTypeInfo().GenericTypeArguments;
+        public static Type[] GetGenericArguments(this Type type) => TypeHelper.GetGenericArguments(type);
 
-        public static Type[] GetGenericParameters(this Type type) => type.GetGenericTypeDefinition().GetTypeInfo().GenericTypeParameters;
+        public static Type[] GetGenericParameters(this Type type) => TypeHelper.GetGenericParameters(type);
 
-        public static IEnumerable<ConstructorInfo> GetDeclaredConstructors(this Type type) => type.GetTypeInfo().DeclaredConstructors;
+        public static IEnumerable<ConstructorInfo> GetDeclaredConstructors(this Type type) => TypeHelper.GetDeclaredConstructors(type);
 
 #if NET45
         public static Type CreateType(this TypeBuilder type)
         {
-            return type.CreateTypeInfo().AsType();
+            return TypeHelper.CreateType(type);
         }
 #endif
 
-        public static IEnumerable<MemberInfo> GetDeclaredMembers(this Type type) => type.GetTypeInfo().DeclaredMembers;
+        public static IEnumerable<MemberInfo> GetDeclaredMembers(this Type type) => TypeHelper.GetDeclaredMembers(type);
 
-        public static IEnumerable<MemberInfo> GetAllMembers(this Type type)
-        {
-            while (true)
-            {
-                foreach (var memberInfo in type.GetTypeInfo().DeclaredMembers)
-                {
-                    yield return memberInfo;
-                }
+        public static IEnumerable<MemberInfo> GetAllMembers(this Type type) => TypeHelper.GetAllMembers(type);
 
-                type = type.BaseType();
+        public static MemberInfo[] GetMember(this Type type, string name) => TypeHelper.GetMember(type, name);
 
-                if (type == null)
-                {
-                    yield break;
-                }
-            }
-        }
+        public static IEnumerable<MethodInfo> GetDeclaredMethods(this Type type) => TypeHelper.GetDeclaredMethods(type);
 
-        public static MemberInfo[] GetMember(this Type type, string name)
-        {
-            return type.GetAllMembers().Where(mi => mi.Name == name).ToArray();
-        }
+        public static MethodInfo GetDeclaredMethod(this Type type, string name) => TypeHelper.GetDeclaredMethod(type, name);
 
-        public static IEnumerable<MethodInfo> GetDeclaredMethods(this Type type) => type.GetTypeInfo().DeclaredMethods;
+        public static MethodInfo GetDeclaredMethod(this Type type, string name, Type[] parameters) => TypeHelper.GetDeclaredMethod(type, name, parameters);
 
-        public static MethodInfo GetDeclaredMethod(this Type type, string name)
-        {
-            return type.GetAllMethods().FirstOrDefault(mi => mi.Name == name);
-        }
+        public static ConstructorInfo GetDeclaredConstructor(this Type type, Type[] parameters) => TypeHelper.GetDeclaredConstructor(type, parameters);
 
-        public static MethodInfo GetDeclaredMethod(this Type type, string name, Type[] parameters)
-        {
-            return type
-                .GetAllMethods()
-                .Where(mi => mi.Name == name)
-                .Where(mi => mi.GetParameters().Length == parameters.Length)
-                .FirstOrDefault(mi => mi.GetParameters().Select(pi => pi.ParameterType).SequenceEqual(parameters));
-        }
+        public static IEnumerable<MethodInfo> GetAllMethods(this Type type) => TypeHelper.GetAllMethods(type);
 
-        public static ConstructorInfo GetDeclaredConstructor(this Type type, Type[] parameters)
-        {
-            return type
-                .GetTypeInfo()
-                .DeclaredConstructors
-                .Where(mi => mi.GetParameters().Length == parameters.Length)
-                .FirstOrDefault(mi => mi.GetParameters().Select(pi => pi.ParameterType).SequenceEqual(parameters));
-        }
+        public static IEnumerable<PropertyInfo> GetDeclaredProperties(this Type type) => TypeHelper.GetDeclaredProperties(type);
 
-        public static IEnumerable<MethodInfo> GetAllMethods(this Type type) => type.GetRuntimeMethods();
+        public static PropertyInfo GetDeclaredProperty(this Type type, string name)
+            => TypeHelper.GetDeclaredProperty(type, name);
 
-        public static IEnumerable<PropertyInfo> GetDeclaredProperties(this Type type) => type.GetTypeInfo().DeclaredProperties;
+        public static object[] GetCustomAttributes(this Type type, Type attributeType, bool inherit)
+            => TypeHelper.GetCustomAttributes(type, attributeType, inherit);
 
-        public static PropertyInfo GetDeclaredProperty(this Type type, string name) 
-            => type.GetTypeInfo().GetDeclaredProperty(name);
+        public static bool IsStatic(this FieldInfo fieldInfo) => TypeHelper.IsStatic(fieldInfo);
 
-        public static object[] GetCustomAttributes(this Type type, Type attributeType, bool inherit) 
-            => type.GetTypeInfo().GetCustomAttributes(attributeType, inherit).Cast<object>().ToArray();
+        public static bool IsStatic(this PropertyInfo propertyInfo) => TypeHelper.IsStatic(propertyInfo);
 
-        public static bool IsStatic(this FieldInfo fieldInfo) => fieldInfo?.IsStatic ?? false;
+        public static bool IsStatic(this MemberInfo memberInfo) => TypeHelper.IsStatic(memberInfo);
 
-        public static bool IsStatic(this PropertyInfo propertyInfo) => propertyInfo?.GetGetMethod(true)?.IsStatic
-                                                                       ?? propertyInfo?.GetSetMethod(true)?.IsStatic
-                                                                       ?? false;
-
-        public static bool IsStatic(this MemberInfo memberInfo) => (memberInfo as FieldInfo).IsStatic() 
-                                                                   || (memberInfo as PropertyInfo).IsStatic()
-                                                                   || ((memberInfo as MethodInfo)?.IsStatic
-                                                                       ?? false);
-
-        public static bool IsPublic(this PropertyInfo propertyInfo) => (propertyInfo?.GetGetMethod(true)?.IsPublic ?? false)
-                                                                       || (propertyInfo?.GetSetMethod(true)?.IsPublic ?? false);
+        public static bool IsPublic(this PropertyInfo propertyInfo) => TypeHelper.IsPublic(propertyInfo);
 
         public static IEnumerable<PropertyInfo> PropertiesWithAnInaccessibleSetter(this Type type)
-        {
-            return type.GetDeclaredProperties().Where(pm => pm.HasAnInaccessibleSetter());
-        }
+            => TypeHelper.PropertiesWithAnInaccessibleSetter(type);
 
-        public static bool HasAnInaccessibleSetter(this PropertyInfo property)
-        {
-            var setMethod = property.GetSetMethod(true);
-            return setMethod == null || setMethod.IsPrivate || setMethod.IsFamily;
-        }
+        public static bool HasAnInaccessibleSetter(this PropertyInfo property) 
+            => TypeHelper.HasAnInaccessibleSetter(property);
 
-        public static bool IsPublic(this MemberInfo memberInfo) => (memberInfo as FieldInfo)?.IsPublic ?? (memberInfo as PropertyInfo).IsPublic();
+        public static bool IsPublic(this MemberInfo memberInfo) => TypeHelper.IsPublic(memberInfo);
 
-        public static bool IsNotPublic(this ConstructorInfo constructorInfo) => constructorInfo.IsPrivate
-                                                                                || constructorInfo.IsFamilyAndAssembly
-                                                                                || constructorInfo.IsFamilyOrAssembly
-                                                                                || constructorInfo.IsFamily;
+        public static bool IsNotPublic(this ConstructorInfo constructorInfo) => TypeHelper.IsNotPublic(constructorInfo);
 
-        public static Assembly Assembly(this Type type) => type.GetTypeInfo().Assembly;
+        public static Assembly Assembly(this Type type) => TypeHelper.Assembly(type);
 
-        public static Type BaseType(this Type type) => type.GetTypeInfo().BaseType;
+        public static Type BaseType(this Type type) => TypeHelper.BaseType(type);
 
-        public static bool IsAssignableFrom(this Type type, Type other) => type.GetTypeInfo().IsAssignableFrom(other.GetTypeInfo());
+        public static bool IsAssignableFrom(this Type type, Type other)
+            => TypeHelper.IsAssignableFrom(type, other);
 
-        public static bool IsAbstract(this Type type) => type.GetTypeInfo().IsAbstract;
+        public static bool IsAbstract(this Type type) => TypeHelper.IsAbstract(type);
 
-        public static bool IsClass(this Type type) => type.GetTypeInfo().IsClass;
+        public static bool IsClass(this Type type) => TypeHelper.IsClass(type);
 
-        public static bool IsEnum(this Type type) => type.GetTypeInfo().IsEnum;
+        public static bool IsEnum(this Type type) => TypeHelper.IsEnum(type);
 
-        public static bool IsGenericType(this Type type) => type.GetTypeInfo().IsGenericType;
+        public static bool IsGenericType(this Type type) => TypeHelper.IsGenericType(type);
 
-        public static bool IsGenericTypeDefinition(this Type type) => type.GetTypeInfo().IsGenericTypeDefinition;
+        public static bool IsGenericTypeDefinition(this Type type) => TypeHelper.IsGenericTypeDefinition(type);
 
-        public static bool IsInterface(this Type type) => type.GetTypeInfo().IsInterface;
+        public static bool IsInterface(this Type type) => TypeHelper.IsInterface(type);
 
-        public static bool IsPrimitive(this Type type) => type.GetTypeInfo().IsPrimitive;
+        public static bool IsPrimitive(this Type type) => TypeHelper.IsPrimitive(type);
 
-        public static bool IsSealed(this Type type) => type.GetTypeInfo().IsSealed;
+        public static bool IsSealed(this Type type) => TypeHelper.IsSealed(type);
 
-        public static bool IsValueType(this Type type) => type.GetTypeInfo().IsValueType;
+        public static bool IsValueType(this Type type) => TypeHelper.IsValueType(type);
 
-        public static bool IsInstanceOfType(this Type type, object o) => o != null && type.GetTypeInfo().IsAssignableFrom(o.GetType().GetTypeInfo());
+        public static bool IsInstanceOfType(this Type type, object o) => TypeHelper.IsInstanceOfType(type, o);
 
-        public static ConstructorInfo[] GetConstructors(this Type type) => type.GetTypeInfo().DeclaredConstructors.ToArray();
+        public static ConstructorInfo[] GetConstructors(this Type type) => TypeHelper.GetConstructors(type);
 
-        public static PropertyInfo[] GetProperties(this Type type) => type.GetRuntimeProperties().ToArray();
+        public static PropertyInfo[] GetProperties(this Type type) => TypeHelper.GetProperties(type);
 
-        public static MethodInfo GetGetMethod(this PropertyInfo propertyInfo, bool ignored) => propertyInfo.GetMethod;
+        public static MethodInfo GetGetMethod(this PropertyInfo propertyInfo, bool ignored) 
+            => TypeHelper.GetGetMethod(propertyInfo, ignored);
 
-        public static MethodInfo GetSetMethod(this PropertyInfo propertyInfo, bool ignored) => propertyInfo.SetMethod;
+        public static MethodInfo GetSetMethod(this PropertyInfo propertyInfo, bool ignored)
+            => TypeHelper.GetSetMethod(propertyInfo, ignored);
 
-        public static FieldInfo GetField(this Type type, string name) => type.GetRuntimeField(name);
+        public static FieldInfo GetField(this Type type, string name) => TypeHelper.GetField(type, name);
     }
 }

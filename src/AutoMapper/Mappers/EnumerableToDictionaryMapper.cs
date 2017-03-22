@@ -1,9 +1,12 @@
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using AutoMapper.Configuration;
+using AutoMapper.Mappers.Internal;
 
 namespace AutoMapper.Mappers
 {
+    using static CollectionMapperExpressionFactory;
+
     public class EnumerableToDictionaryMapper : IObjectMapper
     {
         public bool IsMatch(TypePair context) => context.DestinationType.IsDictionaryType()
@@ -11,8 +14,7 @@ namespace AutoMapper.Mappers
                                                  && !context.SourceType.IsDictionaryType();
 
         public Expression MapExpression(IConfigurationProvider configurationProvider, ProfileMap profileMap, PropertyMap propertyMap, Expression sourceExpression, Expression destExpression, Expression contextExpression)
-            =>
-            CollectionMapperExtensions.MapCollectionExpression(configurationProvider, profileMap, propertyMap, sourceExpression, destExpression,
-                contextExpression, CollectionMapperExtensions.IfNotNull, typeof(Dictionary<,>), CollectionMapperExtensions.MapItemExpr);
+            => MapCollectionExpression(configurationProvider, profileMap, propertyMap, sourceExpression, destExpression,
+                contextExpression, IfNotNull, typeof(Dictionary<,>), MapItemExpr);
     }
 }
